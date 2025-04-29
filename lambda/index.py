@@ -6,7 +6,7 @@ import urllib.request
 import urllib.error
 
 # FastAPI サーバーのURL
-FASTAPI_URL = "https://5f0f-34-125-90-180.ngrok-free.app/generate"
+FASTAPI_URL = os.environ.get("FASTAPI_URL", "https://5f0f-34-125-90-180.ngrok-free.app/generate")
 
 def lambda_handler(event, context):
     try:
@@ -29,7 +29,8 @@ def lambda_handler(event, context):
         request_payload = {
             "messages": conversation_history.copy(),
             "user_message": message,
-            "max_tokens": 512,
+            "max_new_tokens": 512,
+            "do_sample": True,
             "temperature": 0.7,
             "top_p": 0.9
         }
