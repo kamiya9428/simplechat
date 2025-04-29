@@ -5,7 +5,7 @@ import re  # 正規表現モジュールをインポート
 import urllib.request
 import urllib.error
 
-# FastAPI サーバーのURL
+# FastAPI サーバーのURL（環境変数から取得。なければデフォルトURL）
 FASTAPI_URL = os.environ.get("FASTAPI_URL", "https://5f0f-34-125-90-180.ngrok-free.app/generate")
 
 def lambda_handler(event, context):
@@ -19,27 +19,20 @@ def lambda_handler(event, context):
             print(f"Authenticated user: {user_info.get('email') or user_info.get('cognito:username')}")
         
         # リクエストボディの解析
-        body = json.loads(event['body'])
-        message = body['message']
-        conversation_history = body.get('conversationHistory', [])
+        body = json.loads(event.get("body", "{}"))
+        message = body.get("message", "")
+        conversation_history = body.get("conversationHistory", [])
         
         print("Processing message:", message)
         
         # FastAPIサーバーに送信するリクエストデータの構築
         request_payload = {
-            "messages": conversation_history.copy(),
-            "user_message": message,
+            "prompt": message,
             "max_new_tokens": 512,
             "do_sample": True,
             "temperature": 0.7,
             "top_p": 0.9
         }
-        
-        # ユーザーメッセージを追加（会話履歴はすでに含まれている）
-        request_payload["messages"].append({
-            "role": "user",
-            "content": message
-        })
         
         print("Calling FastAPI server with payload:", json.dumps(request_payload))
         
@@ -72,12 +65,12 @@ def lambda_handler(event, context):
         # アシスタントの応答を取得
         assistant_response = response_body["generated_text"]
         
-        # アシスタントの応答を会話履歴に追加
-        updated_history = request_payload["messages"].copy()
-        updated_history.append({
-            "role": "assistant",
-            "content": assistant_response
-        })
+        # 会話履歴の更新
+        updated_history = conversation_history.copy()
+        updated_history.extend([
+            {"role": "user", "content": message},
+            {"role": "assistant", "content": assistant_response}
+        ])
         
         # 成功レスポンスの返却
         return {
@@ -127,7 +120,6 @@ def lambda_handler(event, context):
         }
     except Exception as error:
         print("Error:", str(error))
-        
         return {
             "statusCode": 500,
             "headers": {
